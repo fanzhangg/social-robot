@@ -20,6 +20,9 @@ class Coord:
     def __bool__(self):
         return self.x == -1 and self.y == -1 and self.w == -1 and self.h == -1
 
+    def __str__(self):
+        return f"{self.x, self.y, self.w, self.h}"
+
 
 class FaceRecognizer(threading.Thread):
     def __init__(self, root: tk.Tk, canvas: tk.Canvas):
@@ -36,7 +39,7 @@ class FaceRecognizer(threading.Thread):
         self.line_width = 3
 
         self.face_pos = Coord(70, 70, 350 - 70, 350 - 70)
-        self.det_pos = Coord(-1, -1, -1, -1)
+        self.det_pos = None
         self.lms = None
 
     def scale_points(self, pts: np.array) -> np.array:
@@ -61,34 +64,70 @@ class FaceRecognizer(threading.Thread):
         :param y:
         :return:
         """
-        x -= self.face_pos.x
-        y -= self.face_pos.y
+        x -= self.det_pos.x
+        y -= self.det_pos.y
 
-        x * self.face_pos.w / self.det_pos.w + self.face_pos.x
-        y * self.face_pos.h / self.det_pos.h + self.face_pos.y
+        x = x / self.det_pos.w * self.face_pos.w + self.face_pos.x
+        y = y / self.det_pos.h * self.face_pos.h + self.face_pos.y
 
         return int(x), int(y)
 
-    def get_mouth_pos(self):
+    def get_feature_pos(self, num1, num2):
         if self.lms is None:
             raise ValueError("No landmarks")
-        l_pt = self.lms[48]
+        l_pt = self.lms[num1]
         x, y = (l_pt[0], l_pt[1])
-        r_pt = self.lms[54]
+        r_pt = self.lms[num2]
         x2, y2 = (r_pt[0], r_pt[1])
         if debug:
-            print(f"Get mouse points: {x, y, x2, y2}")
+            print(f"{x, y, x2, y2}")
         return x, y, x2, y2
 
     def set_mouth(self):
-        x, y, x2, y2 = self.get_mouth_pos()
+        x, y, x2, y2 = self.get_feature_pos(48, 54)
+        if debug:
+            print(f"Get mouse points: {x, y, x2, y2}")
         x, y = self.transform_pt(x, y)
         x2, y2 = self.transform_pt(x2, y2)
         self.canvas.delete('mouth')
         self.canvas.create_line(x, y, x2, y2, width=5, tags='mouth')
 
+    def transform_eye(self,x0, y0, x1, y1):
+        r = (x1 - x0) / 2 + 10
+        return int(x0)-10, int(y0 - r), x1+10, int(y1 + r)
+
+    def set_eyeballs(self):
+        x0, y0, x1, y1 = self.get_feature_pos(36, 39)
+        cx, cy = (x1 + x0) / 2, (y0 + y1) / 2
+        cx, cy = self.transform_pt(cx, cy)
+        self.canvas.delete("leftBall")
+        self.canvas.create_oval(cx, cy, cx+30, cy+30, fill="black", tag='leftBall')
+
+        x0, y0, x1, y1 = self.get_feature_pos(42, 45)
+        cx, cy = (x1 + x0) / 2, (y0 + y1) / 2
+        cx, cy = self.transform_pt(cx, cy)
+        self.canvas.delete("rightBall")
+        self.canvas.create_oval(cx, cy, cx + 30, cy + 30, fill="black", tag='rightBall')
+
+    def set_eyes(self):
+        x0, y0, x1, y1 = self.get_feature_pos(36, 39)
+        x0, y0, x1, y1 = self.transform_eye(x0, y0, x1, y1)
+        x0, y0 = self.transform_pt(x0, y0)
+        x1, y1 = self.transform_pt(x1, y1)
+        self.canvas.delete('left')
+        self.canvas.create_oval(x0, y0, x1, y1, fill='white', tags='left', width=5, outline="#ED950D")
+
+        x0, y0, x1, y1 = self.get_feature_pos(42, 45)
+        x0, y0, x1, y1 = self.transform_eye(x0, y0, x1, y1)
+        x0, y0 = self.transform_pt(x0, y0)
+        x1, y1 = self.transform_pt(x1, y1)
+        self.canvas.delete('right')
+        self.canvas.create_oval(x0, y0, x1, y1, fill='white', tags='right', width=5, outline="#ED950D")
+
     def set_face(self):
         self.set_mouth()
+        self.set_eyes()
+        self.set_eyeballs()
 
     def annotate_face(self, img):
         """
@@ -104,9 +143,19 @@ class FaceRecognizer(threading.Thread):
             # TODO: Try to find out the most essential face rather tahn the first face by default
             det = dets[0]  # Find the essential face
             # Draw rectangle around the face
-            self.det_pos = Coord(det.left(), det.top(), det.right()-det.left(), det.bottom()-det.top())
+            x0, y0, x1, y1 = det.left(), det.top(), det.right(), det.bottom()
+
             cv2.rectangle(img, (det.left(), det.top()), (det.right(), det.bottom()), self.color_green, self.line_width)
             self.lms = np.array([[p.x, p.y] for p in self.predictor(img, det).parts()])
+
+            x0 = self.lms[0][0]
+            y0 = det.top()
+            x1 = self.lms[16][0]
+            y1 = self.lms[8][1]
+
+            if self.det_pos is None or abs(self.det_pos.h - (y1-y0)) < 10:  # Update the det_pos if the height diff is within a threshold
+                self.det_pos = Coord(x0, y0, x1-x0, y1-y0)
+
             for idx, point in enumerate(self.lms):
                 pos = (point[0], point[1])
                 # cv2.putText(im, str(idx), pos,
@@ -129,6 +178,6 @@ class FaceRecognizer(threading.Thread):
                 print("Nothing gets updated")
 
             cv2.imshow('my webcam', img)
-            if cv2.waitKey(10) == 27:
+            if cv2.waitKey(1) == 27:
                 break  # esc to quit
         cv2.destroyAllWindows()

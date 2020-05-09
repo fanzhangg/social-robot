@@ -9,12 +9,23 @@ debug = True
 
 class Coord:
     def __init__(self, x, y, w, h):
+        """
+        This is a class to keep track of a rectangle in the coordinate
+        :param x:
+        :param y:
+        :param w: width
+        :param h: height
+        """
         self.x = x
         self.y = y
         self.w = w
         self.h = h
 
     def get_pos(self):
+        """
+        Get the position of the rect
+        :return: x0, y0, x1, y1
+        """
         return self.x, self.y, self.x + self.w, self.y + self.h
 
     def __bool__(self):
@@ -25,6 +36,9 @@ class Coord:
 
 
 class FaceRecognizer(threading.Thread):
+    """
+    A thread for keeping track of the facial landmarks and update the face expression on the canvas
+    """
     def __init__(self, root: tk.Tk, canvas: tk.Canvas):
         super().__init__()
         self.root = root
@@ -42,27 +56,12 @@ class FaceRecognizer(threading.Thread):
         self.det_pos = None
         self.lms = None
 
-    def scale_points(self, pts: np.array) -> np.array:
-        # xs, ys = pts.T      # x and y values of the given points
-        # cx, cy = np.mean(xs), np.mean(ys)   # center
-        if self.det_w is None:
-            raise ValueError("No det width")
-        # xr, yr = self.det_w / self.face_w, self.det_w * self.face_w     # Ratio of center points
-        # ncx, ncy = cx / xr + , cy / yr   # New center point
-        # vxs, vys = xs - cx, ys - cy     # Vectors from the center points
-        # vxs, yxs = vxs / xr, vys / yr   # New vectors from the center points
-        # npts = np.array(list(zip(vxs + ncx, yxs + ncy)))     # New points
-        # if debug:
-        #     print(f"Scaled points: {npts}")
-        # return npts
-        pts = pts / self.face_pos.w
-
     def transform_pt(self, x, y) -> tuple:
         """
         Transform a point in the image to a point in the canvas
         :param x:
         :param y:
-        :return:
+        :return: new x,y
         """
         x -= self.det_pos.x
         y -= self.det_pos.y
@@ -73,26 +72,44 @@ class FaceRecognizer(threading.Thread):
         return int(x), int(y)
 
     def get_feature_pos(self, num1, num2):
+        """
+        Get 2 coordinates of the landmark of the given number
+        :param num1:
+        :param num2:
+        :return:
+        """
         if self.lms is None:
             raise ValueError("No landmarks")
         l_pt = self.lms[num1]
         x, y = (l_pt[0], l_pt[1])
         r_pt = self.lms[num2]
         x2, y2 = (r_pt[0], r_pt[1])
-        if debug:
-            print(f"{x, y, x2, y2}")
         return x, y, x2, y2
 
+    # Functions to update the face features on the canvas
     def set_mouth(self):
         x, y, x2, y2 = self.get_feature_pos(48, 54)
         if debug:
             print(f"Get mouse points: {x, y, x2, y2}")
         x, y = self.transform_pt(x, y)
         x2, y2 = self.transform_pt(x2, y2)
-        self.canvas.delete('mouth')
-        self.canvas.create_line(x, y, x2, y2, width=5, tags='mouth')
 
-    def transform_eye(self,x0, y0, x1, y1):
+        c_pt = self.lms[67]
+        x1, y1 = (c_pt[0], c_pt[1])
+        x1, y1 = self.transform_pt(x1, y1)
+
+        self.canvas.delete('mouth')
+        self.canvas.create_line(x, y, x1, y1, x2, y2, width=5, smooth='true', tags='mouth')
+
+    def transform_eye(self, x0, y0, x1, y1):
+        """
+        Make the eye bigger and more round
+        :param x0:
+        :param y0:
+        :param x1:
+        :param y1:
+        :return:
+        """
         r = (x1 - x0) / 2 + 10
         return int(x0)-10, int(y0 - r), x1+10, int(y1 + r)
 
@@ -100,14 +117,16 @@ class FaceRecognizer(threading.Thread):
         x0, y0, x1, y1 = self.get_feature_pos(36, 39)
         cx, cy = (x1 + x0) / 2, (y0 + y1) / 2
         cx, cy = self.transform_pt(cx, cy)
+        # r = ((x1 - x0) / 2 + 10)
         self.canvas.delete("leftBall")
-        self.canvas.create_oval(cx, cy, cx+30, cy+30, fill="black", tag='leftBall')
+        self.canvas.create_oval(cx-10, cy-10, cx+10, cy+10, fill="black", tag='leftBall')
 
         x0, y0, x1, y1 = self.get_feature_pos(42, 45)
         cx, cy = (x1 + x0) / 2, (y0 + y1) / 2
         cx, cy = self.transform_pt(cx, cy)
         self.canvas.delete("rightBall")
-        self.canvas.create_oval(cx, cy, cx + 30, cy + 30, fill="black", tag='rightBall')
+        r = (x1 - x0) / 2 + 10
+        self.canvas.create_oval(cx-10, cy-10, cx + 10, cy + 10, fill="black", tag='rightBall')
 
     def set_eyes(self):
         x0, y0, x1, y1 = self.get_feature_pos(36, 39)
@@ -124,10 +143,46 @@ class FaceRecognizer(threading.Thread):
         self.canvas.delete('right')
         self.canvas.create_oval(x0, y0, x1, y1, fill='white', tags='right', width=5, outline="#ED950D")
 
+    def set_eyebrows(self):
+        x0, y0, x1, y1 = self.get_feature_pos(18, 20)
+        x0, y0 = self.transform_pt(x0, y0)
+        x1, y1 = self.transform_pt(x1, y1)
+        self.canvas.delete("leftBrow")
+        self.canvas.create_line(x0, y0, x1, y1, width=5, tags='leftBrow')
+
+        x0, y0, x1, y1 = self.get_feature_pos(23, 25)
+        x0, y0 = self.transform_pt(x0, y0)
+        x1, y1 = self.transform_pt(x1, y1)
+        self.canvas.delete("rightBrow")
+        self.canvas.create_line(x0, y0, x1, y1, width=5, tags='rightBrow')
+
+    def set_nose(self):
+        x0, y0, x1, y1 = self.get_feature_pos(28, 33)
+        x0, y0 = self.transform_pt(x0, y0)
+        x1, y1 = self.transform_pt(x1, y1)
+        self.canvas.delete("noseBridge")
+
+        noseAlign = (x0 - self.face_pos.x) / self.face_pos.w
+        if noseAlign > 0.52:
+            x2, y2 = self.lms[32]
+        elif noseAlign < 0.48:
+            x2, y2 = self.lms[34]
+        else:
+            x2, y2 = self.lms[33]
+        x2, y2 = self.transform_pt(x2, y2)
+        self.canvas.delete("noseTip")
+        self.canvas.create_line(x0, y0, x1, y1, x2, y2, width=5, tags='noseTip', smooth='true')
+
     def set_face(self):
+        """
+        Update all features on the face
+        :return:
+        """
         self.set_mouth()
         self.set_eyes()
         self.set_eyeballs()
+        self.set_eyebrows()
+        self.set_nose()
 
     def annotate_face(self, img):
         """
@@ -140,32 +195,31 @@ class FaceRecognizer(threading.Thread):
         if len(dets) == 0:
             return img
         else:
-            # TODO: Try to find out the most essential face rather tahn the first face by default
             det = dets[0]  # Find the essential face
             # Draw rectangle around the face
-            x0, y0, x1, y1 = det.left(), det.top(), det.right(), det.bottom()
-
             cv2.rectangle(img, (det.left(), det.top()), (det.right(), det.bottom()), self.color_green, self.line_width)
             self.lms = np.array([[p.x, p.y] for p in self.predictor(img, det).parts()])
 
             x0 = self.lms[0][0]
-            y0 = det.top()
+            y0 = self.lms[19][1]
             x1 = self.lms[16][0]
             y1 = self.lms[8][1]
 
-            if self.det_pos is None or abs(self.det_pos.h - (y1-y0)) < 10:  # Update the det_pos if the height diff is within a threshold
-                self.det_pos = Coord(x0, y0, x1-x0, y1-y0)
+            y0 -= (y1-y0) * 0.2     # Scale the height to include the forehead
+
+            self.det_pos = Coord(x0, y0, x1-x0, y1-y0)
 
             for idx, point in enumerate(self.lms):
                 pos = (point[0], point[1])
-                # cv2.putText(im, str(idx), pos,
-                #             fontFace=cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
-                #             fontScale=0.4,
-                #             color=(0, 0, 255))
                 cv2.circle(img, pos, 1, color=(0, 255, 255))
             return img
 
     def run(self):
+        """
+        Recognize the facial landmark on the video capture, and update the face on the canvas
+        This will be called after the thread starts
+        :return:
+        """
         cam = cv2.VideoCapture(0)
         while True:
             ret_val, img = cam.read()

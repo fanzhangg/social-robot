@@ -3,6 +3,7 @@ import cv2
 from face import Face
 from face_recognizer import FaceRecognizer
 
+
 class GUI:
     """Set up and manage all the variables for the GUI interface"""
 
@@ -10,13 +11,16 @@ class GUI:
         self.root = Tk()
         self.root.title("Noob Robot")
 
+
         self.face = None
         self.canvas = None
+
+        self.rc = None
+
 
     def setup_widgets(self):
         """Set up all the parts of the GUI"""
         self._init_face()
-        self._init_expression_tool()
         self._init_video_tool()
 
     def _init_face(self):
@@ -31,11 +35,10 @@ class GUI:
     def _init_video_tool(self):
         videoFrame = Frame(self.root, bd=5, padx=10, pady=10)
         videoFrame.grid(row=2, column=1, padx=5, pady=5)
-        self.runBtn = Button(videoFrame, text="Start", command=self.run_animation)
+        self.runText = StringVar()
+        self.runText.set("Start Animation")
+        self.runBtn = Button(videoFrame, textvariable=self.runText, command=self.run_animation, width=40, height=2)
         self.runBtn.grid(row=1, column=1)
-
-        self.stopBtn = Button(videoFrame, text="Stop")
-        self.stopBtn.grid(row=1, column=2)
 
     def _init_expression_tool(self):
         expressionFrame = Frame(self.root, bd=5, padx=10, pady=10)
@@ -53,8 +56,18 @@ class GUI:
         self.smileBtn = Button()
 
     def run_animation(self):
-        rc = FaceRecognizer(self.root, self.canvas)
-        rc.start()
+        self.runText.set("Press 'Esc' to stop")
+        self.rc = FaceRecognizer(self.root, self.canvas, self.runText, self.runBtn)
+        self.rc.start()
+        self.runText.set("Start Animation")
+
+    def stop_animation(self):
+        self.rc.join()
+
+    def on_closing(self):
+        if self.rc is not None:
+            self.rc.join()
+        self.root.destroy()
 
     def run_face_animation(self):
         """
@@ -91,14 +104,5 @@ class GUI:
 
     def run(self):
         """Start the whole GUI"""
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.root.mainloop()
-
-
-def run():
-    gui = GUI()
-    gui.setup_widgets()
-    gui.run()
-
-
-if __name__ == "__main__":
-    run()

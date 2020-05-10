@@ -4,7 +4,8 @@ import dlib
 import cv2
 import numpy as np
 
-debug = True
+DEBUG = True
+WAIT_TIME = 1
 
 
 class Coord:
@@ -39,10 +40,12 @@ class FaceRecognizer(threading.Thread):
     """
     A thread for keeping track of the facial landmarks and update the face expression on the canvas
     """
-    def __init__(self, root: tk.Tk, canvas: tk.Canvas):
+    def __init__(self, root: tk.Tk, canvas: tk.Canvas, run_text: tk.StringVar, run_btn: tk.Button):
         super().__init__()
         self.root = root
         self.canvas = canvas
+        self.run_text = run_text
+        self.run_btn = run_btn
 
         predictor_path = "predictors/shape_predictor_68_face_landmarks.dat"
 
@@ -55,6 +58,9 @@ class FaceRecognizer(threading.Thread):
         self.face_pos = Coord(70, 70, 350 - 70, 350 - 70)
         self.det_pos = None
         self.lms = None
+
+        self._stop_event = threading.Event()
+        self._is_running = True
 
     def transform_pt(self, x, y) -> tuple:
         """
@@ -89,7 +95,7 @@ class FaceRecognizer(threading.Thread):
     # Functions to update the face features on the canvas
     def set_mouth(self):
         x, y, x2, y2 = self.get_feature_pos(48, 54)
-        if debug:
+        if DEBUG:
             print(f"Get mouse points: {x, y, x2, y2}")
         x, y = self.transform_pt(x, y)
         x2, y2 = self.transform_pt(x2, y2)
@@ -221,17 +227,36 @@ class FaceRecognizer(threading.Thread):
         :return:
         """
         cam = cv2.VideoCapture(0)
-        while True:
+        while not self._stop_event.isSet():
             ret_val, img = cam.read()
             img = self.annotate_face(img)
 
             try:
+                self.run_text.set("Press 'Esc' to Stop")
+                self.run_btn["state"] = "disabled"
                 self.set_face()
                 self.root.update()
             except ValueError:
                 print("Nothing gets updated")
 
             cv2.imshow('my webcam', img)
-            if cv2.waitKey(1) == 27:
+            if cv2.waitKey(WAIT_TIME) == 27:
                 break  # esc to quit
         cv2.destroyAllWindows()
+        self.run_text.set("Start Animation")
+        self.run_btn["state"] = "normal"
+        self.root.update()
+        # self.join()
+        print("The video capture ends")
+
+
+    def stop(self):
+        self._is_running = False
+        cv2.destroyAllWindows()
+        self._stop_event.set()
+
+    def join(self, timeout=None):
+        cv2.destroyAllWindows()
+        self._stop_event.set()
+        threading.Thread.join(self, timeout)
+

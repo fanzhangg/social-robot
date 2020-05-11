@@ -1,9 +1,21 @@
 import cv2
+import numpy as np
 from os import path
+import joblib
+import dlib
+import math
 
 """
-This is a demo using webcam to recognize a facial emotion using a model trained by fisher face
+This is the demo using webcam to recognize the emotion of a face using a model trained with dlib and sklearn
 """
+
+# TODO: WIP
+
+clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor(
+    "..\\predictors\\shape_predictor_68_face_landmarks.dat")  # Or set this to whatever you named the downloaded file
+
 
 detPath = path.abspath("../haarcascades/haarcascade_frontalface_default.xml")
 faceDet = cv2.CascadeClassifier(detPath)
@@ -20,6 +32,37 @@ fontScale = 1
 fontColor = (0, 0, 255)
 lineType = 2
 emotion = ["Happy", "Sad"]
+
+
+def get_landmarks(image):
+    detections = detector(image, 1)
+    for k, d in enumerate(detections):  # For all detected face instances individually
+        shape = predictor(image, d)  # Draw Facial Landmarks with the predictor class
+        xlist = []
+        ylist = []
+        for i in range(1, 68):  # Store X and Y coordinates in two lists
+            xlist.append(float(shape.part(i).x))
+            ylist.append(float(shape.part(i).y))
+
+        xmean = np.mean(xlist)
+        ymean = np.mean(ylist)
+        xcentral = [(x - xmean) for x in xlist]
+        ycentral = [(y - ymean) for y in ylist]
+
+        landmarks_vectorised = []
+        for x, y, w, z in zip(xcentral, ycentral, xlist, ylist):
+            landmarks_vectorised.append(w)
+            landmarks_vectorised.append(z)
+            meannp = np.asarray((ymean, xmean))
+            coornp = np.asarray((z, w))
+            dist = np.linalg.norm(coornp - meannp)
+            landmarks_vectorised.append(dist)
+            landmarks_vectorised.append((math.atan2(y, x) * 360) / (2 * math.pi))
+
+    if len(detections) < 1:
+        return None
+    else:
+        return landmarks_vectorised
 
 
 def find_faces(image):
@@ -51,6 +94,11 @@ def find_faces(image):
         out = cv2.resize(out, (300, 300))  # Resize face so all images have same size
     return out, (x, y, w, h)
 
+def predict(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    clahe_image = clahe.apply(gray)
+    landmarks = get_landmarks(clahe_image)
+    np.array(landmarks)
 
 def showWebCamAndRun(model):
     """
@@ -78,22 +126,14 @@ def showWebCamAndRun(model):
             continue
         prediction = model.predict(f)
         confidence = 0
-        if cv2.__version__ != '3.1.0':
-            confidence = str(prediction[1])
-            prediction = prediction[0]
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(frame, emotion[prediction],
+        cv2.putText(frame, str(prediction),
                     UpperLeftCornerOfText,
                     font,
                     fontScale,
                     fontColor,
                     lineType)
-        cv2.putText(frame, confidence,
-                    SecondUpperLeftCornerOfText,
-                    font,
-                    fontScale,
-                    fontColor,
-                    lineType)
+
 
         cv2.imshow(window_name, frame)
         key = cv2.waitKey(1) & 0xFF
@@ -106,12 +146,9 @@ def showWebCamAndRun(model):
 
 if __name__ == '__main__':
     # load model
-    p1 = path.abspath(f"../model/emotion_detection_model.xml")
-    p2 = path.abspath(f"../model/emotion_detection_model_large.xml")
-    fisher_face = cv2.face.FisherFaceRecognizer_create()
-    fisher_face.read(p1)
+    model = joblib.load("emotion_model.pkl")
     #fisher_face.read(p2)
 
     # use learnt model
     window_name = 'WEBCAM (press q to exit)'
-    showWebCamAndRun(fisher_face)
+    showWebCamAndRun(model)

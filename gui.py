@@ -29,7 +29,7 @@ class GUI:
         chatFrame.grid(row=0, column=1, padx=5, pady=10)
 
         self.chatLabel = Label(chatFrame, textvariable=self.chatVar)
-        self.chatLabel.config(font=("Courier", 14))
+        self.chatLabel.config(font=("Courier", 12))
         self.chatLabel.grid(row=3, column=1)
 
     def _init_face(self):
@@ -104,7 +104,7 @@ class GUI:
                 for (ex, ey, ew, eh) in eye:
                     cv2.rectangle(roi_color, (ex, ey), (ex + ew, ey + eh), (255, 0, 0), 3)
 
-            cv2.imshow("FD", frame)
+            cv2.imshow("Video Capture", frame)
 
             v = cv2.waitKey(20)
             c = chr(v & 0xFF)

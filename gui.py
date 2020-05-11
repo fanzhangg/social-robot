@@ -65,6 +65,10 @@ class GUI:
         self.smileBtn = Button()
 
     def run_animation(self):
+        """
+        Run the animation of the face
+        :return:
+        """
         self.runText.set("Press 'Esc' to stop")
         self.rc = FaceRecognizer(self.root, self.canvas, self.runText, self.runBtn, self.chatVar)
         self.rc.start()

@@ -12,6 +12,7 @@ DEBUG = True
 WAIT_TIME = 1
 MOOD_BENCHMARK = 100
 
+
 class Coord:
     def __init__(self, x, y, w, h):
         """
@@ -242,6 +243,11 @@ class FaceRecognizer(threading.Thread):
             return img
 
     def handle_mood(self, face):
+        """
+        When a user has an extreme mood, response with a joke or a Stoic quote
+        :param face:
+        :return:
+        """
         self.mt.update_emotion_value(face)
         if self.mt.mood_value > MOOD_BENCHMARK:
             self.set_chat("Happy")
@@ -251,6 +257,11 @@ class FaceRecognizer(threading.Thread):
             self.mt.mood_value = 0
 
     def set_chat(self, mood):
+        """
+        Set the chat text according to the mood, and keep the chat for 5 seconds
+        :param mood:
+        :return:
+        """
         jokes = (
             "How does a rabbi make coffee? Hebrews it!",
             "Rest in peace boiling water. You will be mist!",

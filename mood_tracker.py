@@ -21,6 +21,9 @@ emotion = ["Happy", "Sad"]
 
 class MoodTracker:
     def __init__(self):
+        """
+        This is a class to keep track of the user's mood based on the history of its emotion
+        """
         # load model
         p1 = path.abspath(f"./model/emotion_detection_model.xml")
         p2 = path.abspath(f"./model/emotion_detection_model_large.xml")
@@ -60,7 +63,7 @@ class MoodTracker:
 
     def update_emotion_value(self, f):
         """
-        Shows webcam image, detects faces and its emotions in real time and draw emoticons over those faces.
+        Predict the emotion of the user, update the mood value
         :param model: Learnt emotion detection model.
         :param window_size: Size of webcam image window.
         :param window_name: Name of webcam image window.

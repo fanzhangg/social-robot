@@ -1,7 +1,6 @@
 import cv2
 import numpy
 from os import path
-from talk import Talk
 
 detPath = path.abspath("./haarcascades/haarcascade_frontalface_default.xml")
 faceDet = cv2.CascadeClassifier(detPath)

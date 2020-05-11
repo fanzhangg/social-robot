@@ -10,7 +10,7 @@ import time
 
 DEBUG = True
 WAIT_TIME = 1
-
+MOOD_BENCHMARK = 5000
 
 class Coord:
     def __init__(self, x, y, w, h):
@@ -243,10 +243,10 @@ class FaceRecognizer(threading.Thread):
 
     def handle_mood(self, face):
         self.mt.update_emotion_value(face)
-        if self.mt.mood_value > 100:
+        if self.mt.mood_value > MOOD_BENCHMARK:
             self.set_chat("Happy")
             self.mt.mood_value = 0
-        elif self.mt.mood_value < -100:
+        elif self.mt.mood_value < -MOOD_BENCHMARK:
             self.set_chat("Sad")
             self.mt.mood_value = 0
 

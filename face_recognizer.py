@@ -10,7 +10,7 @@ import time
 
 DEBUG = True
 WAIT_TIME = 1
-MOOD_BENCHMARK = 5000
+MOOD_BENCHMARK = 100
 
 class Coord:
     def __init__(self, x, y, w, h):

@@ -25,7 +25,7 @@ class MoodTracker:
         p1 = path.abspath(f"./model/emotion_detection_model.xml")
         p2 = path.abspath(f"./model/emotion_detection_model_large.xml")
         self.model = cv2.face.FisherFaceRecognizer_create()
-        self.model.read(p1)
+        self.model.read(p2)
 
         self.mood_value = 0
 

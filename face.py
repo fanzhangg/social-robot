@@ -11,7 +11,7 @@ class Face:
         canvas.create_oval(110 + 30, 110 + 30, 110 + 60, 110 + 60, fill="black", tag='leftBall')
         canvas.create_oval(310 - 90, 110, 310, 110 + 90, fill='white', tags='right', width=5, outline="#ED950D")
         canvas.create_oval(220 + 30, 110 + 30, 220 + 60, 110 + 60, fill="black", tag="rightBall")
-        canvas.create_line(145, 250, 275, 250, width=5, tags='mouth')
+        canvas.create_line(145, 250, 275, 250, width=5, tags='upper_mouth')
 
     def smile(self):
         self.canvas.delete('mouth')

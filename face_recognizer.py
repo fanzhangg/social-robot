@@ -103,16 +103,29 @@ class FaceRecognizer(threading.Thread):
 
     # Functions to update the face features on the canvas
     def set_mouth(self):
-        x, y, x2, y2 = self.get_feature_pos(48, 54)
-        x, y = self.transform_pt(x, y)
-        x2, y2 = self.transform_pt(x2, y2)
+        upper_mouth = []
+        for i in (48, 63, 54):
+            c_pt = self.lms[i]
+            x, y = (c_pt[0], c_pt[1])
+            x, y = self.transform_pt(x, y)
+            upper_mouth.extend((x, y))
 
-        c_pt = self.lms[67]
-        x1, y1 = (c_pt[0], c_pt[1])
-        x1, y1 = self.transform_pt(x1, y1)
+        x, y, x1, y1, x2, y2 = upper_mouth
 
-        self.canvas.delete('mouth')
-        self.canvas.create_line(x, y, x1, y1, x2, y2, width=5, smooth='true', tags='mouth')
+        self.canvas.delete('upper_mouth')
+        self.canvas.create_line(x, y, x1, y1, x2, y2, width=5, smooth='true', tags='upper_mouth')
+
+        lower_mouth = []
+        for i in (48, 57, 54):
+            c_pt = self.lms[i]
+            x, y = (c_pt[0], c_pt[1])
+            x, y = self.transform_pt(x, y)
+            lower_mouth.extend((x, y))
+
+        x, y, x1, y1, x2, y2 = lower_mouth
+
+        self.canvas.delete('lower_mouth')
+        self.canvas.create_line(x, y, x1, y1, x2, y2, width=5, smooth='true', tags='lower_mouth')
 
     def transform_eye(self, x0, y0, x1, y1):
         """

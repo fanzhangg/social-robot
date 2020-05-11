@@ -11,17 +11,26 @@ class GUI:
         self.root = Tk()
         self.root.title("Noob Robot")
 
-
         self.face = None
         self.canvas = None
 
         self.rc = None
 
-
     def setup_widgets(self):
         """Set up all the parts of the GUI"""
         self._init_face()
         self._init_video_tool()
+        self._init_chat()
+
+    def _init_chat(self):
+        self.chatVar = StringVar()
+        self.chatVar.set("Hello world!")
+        chatFrame = Frame(self.root)
+        chatFrame.grid(row=0, column=1, padx=5, pady=10)
+
+        self.chatLabel = Label(chatFrame, textvariable=self.chatVar)
+        self.chatLabel.config(font=("Courier", 14))
+        self.chatLabel.grid(row=3, column=1)
 
     def _init_face(self):
         """Set up the face"""
@@ -57,7 +66,7 @@ class GUI:
 
     def run_animation(self):
         self.runText.set("Press 'Esc' to stop")
-        self.rc = FaceRecognizer(self.root, self.canvas, self.runText, self.runBtn)
+        self.rc = FaceRecognizer(self.root, self.canvas, self.runText, self.runBtn, self.chatVar)
         self.rc.start()
         self.runText.set("Start Animation")
 

@@ -3,6 +3,10 @@ import threading
 import dlib
 import cv2
 import numpy as np
+from mood_tracker import MoodTracker
+import random
+import time
+
 
 DEBUG = True
 WAIT_TIME = 1
@@ -40,12 +44,15 @@ class FaceRecognizer(threading.Thread):
     """
     A thread for keeping track of the facial landmarks and update the face expression on the canvas
     """
-    def __init__(self, root: tk.Tk, canvas: tk.Canvas, run_text: tk.StringVar, run_btn: tk.Button):
+    def __init__(self, root: tk.Tk, canvas: tk.Canvas, run_text: tk.StringVar, run_btn: tk.Button, chat_text: tk.StringVar):
         super().__init__()
         self.root = root
         self.canvas = canvas
         self.run_text = run_text
         self.run_btn = run_btn
+
+        self.chat_text = chat_text
+        self.chat_time = None
 
         predictor_path = "predictors/shape_predictor_68_face_landmarks.dat"
 
@@ -61,6 +68,8 @@ class FaceRecognizer(threading.Thread):
 
         self._stop_event = threading.Event()
         self._is_running = True
+
+        self.mt = MoodTracker()
 
     def transform_pt(self, x, y) -> tuple:
         """
@@ -95,8 +104,6 @@ class FaceRecognizer(threading.Thread):
     # Functions to update the face features on the canvas
     def set_mouth(self):
         x, y, x2, y2 = self.get_feature_pos(48, 54)
-        if DEBUG:
-            print(f"Get mouse points: {x, y, x2, y2}")
         x, y = self.transform_pt(x, y)
         x2, y2 = self.transform_pt(x2, y2)
 
@@ -202,8 +209,9 @@ class FaceRecognizer(threading.Thread):
             return img
         else:
             det = dets[0]  # Find the essential face
+            x0, y0, x1, y1 = det.left(), det.top(), det.right(), det.bottom()
             # Draw rectangle around the face
-            cv2.rectangle(img, (det.left(), det.top()), (det.right(), det.bottom()), self.color_green, self.line_width)
+            cv2.rectangle(img, (x0, y0), (x1, y1), self.color_green, self.line_width)
             self.lms = np.array([[p.x, p.y] for p in self.predictor(img, det).parts()])
 
             x0 = self.lms[0][0]
@@ -220,6 +228,52 @@ class FaceRecognizer(threading.Thread):
                 cv2.circle(img, pos, 1, color=(0, 255, 255))
             return img
 
+    def handle_mood(self, face):
+        self.mt.update_emotion_value(face)
+        if self.mt.mood_value > 100:
+            self.set_chat("Happy")
+            self.mt.mood_value = 0
+        elif self.mt.mood_value < -100:
+            self.set_chat("Sad")
+            self.mt.mood_value = 0
+
+    def set_chat(self, mood):
+        jokes = (
+            "How does a rabbi make coffee? Hebrews it!",
+            "Rest in peace boiling water. You will be mist!",
+            "How do you throw a space party? You planet!",
+            "I ate a clock yesterday, it was very time-consuming",
+            "Have you played the updated kids' game? I Spy With My Little Eye . . . Phone.",
+            "If we shouldn't eat at night, why do they put a light in the fridge?"
+        )
+
+        stoics = (
+            "Waste no more time arguing what a good man should be. Be One.",
+            "It never ceases to amaze me: we all love ourselves more than other people, but care more about their opinion than our own.",
+            "The best revenge is not to be like your enemy.",
+            "If it is not right, do not do it, if it is not true, do not say it.",
+            "Be tolerant with others and strict with yourself."
+        )
+
+        if self.chat_time and time.time() - self.chat_time > 5:
+            self.chat_time = None
+            self.chat_text.set("Hello again!")
+            self.root.update()
+            return
+
+        if self.chat_time:
+            return
+
+        if mood == "Happy":
+            text = random.choice(jokes)
+        elif mood == "Sad":
+            text = random.choice(stoics)
+        else:
+            raise ValueError("Invalid argument value of mood")
+        self.chat_text.set(text)
+        self.root.update()
+        self.chat_time = time.time()
+
     def run(self):
         """
         Recognize the facial landmark on the video capture, and update the face on the canvas
@@ -229,24 +283,32 @@ class FaceRecognizer(threading.Thread):
         cam = cv2.VideoCapture(0)
         while not self._stop_event.isSet():
             ret_val, img = cam.read()
-            img = self.annotate_face(img)
+            annotated_img = self.annotate_face(img)
+
+            if img is None:
+                break
+
+            # Update the chat according to the mood
+            face, coord = self.mt.find_faces(img)
+            self.handle_mood(face)
 
             try:
                 self.run_text.set("Press 'Esc' to Stop")
                 self.run_btn["state"] = "disabled"
                 self.set_face()
                 self.root.update()
+
+                self.handle_mood(face)
             except ValueError:
                 print("Nothing gets updated")
 
-            cv2.imshow('my webcam', img)
+            cv2.imshow('my webcam', annotated_img)
             if cv2.waitKey(WAIT_TIME) == 27:
                 break  # esc to quit
         cv2.destroyAllWindows()
         self.run_text.set("Start Animation")
         self.run_btn["state"] = "normal"
         self.root.update()
-        # self.join()
         print("The video capture ends")
 
 
